@@ -1,0 +1,71 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdbool.h>
+#include <string.h>
+#include <ctype.h>
+#include <malloc.h>
+#pragma warning(disable : 4996)
+
+enum { MAX_INSCRIPTIONS = 50, MAX_CARACTERES = 47, MAX_ROLE = 3, MAX_NOM = 31 };
+
+typedef struct {
+    char role[MAX_ROLE];
+    char nom[MAX_NOM];
+}Inscription;
+
+int separer(char commande[], int nb_inscrit, Inscription inscription[]);
+int estInscription(char role[], char nom[], int nb_inscrit, Inscription inscription[]);
+
+int main() {
+    Inscription inscriptions[MAX_INSCRIPTIONS];
+    int nb_inscrit = 0;
+    char commande[MAX_CARACTERES], exit[] = "exit";
+    bool test = true;
+
+    while (test) {
+        fgets(commande, MAX_CARACTERES, stdin);
+
+        // Supprimer le caractère de saut de ligne s'il est présent
+        size_t len = strlen(commande);
+        if (strlen(commande) > 0 && commande[strlen(commande) - 1] == '\n') {
+            commande[len - 1] = '\0';
+        }
+
+        if (strncmp(commande, exit, sizeof(exit) - 1) == 0) {
+            test = false;
+        }
+        else {
+            nb_inscrit = separer(commande, nb_inscrit, inscriptions);
+        }
+    }
+
+
+    return 0;
+}
+
+int separer(char commande[], int nb_inscrit, Inscription inscription[]) {
+    char esp[] = " ";
+    char* temp = strtok(commande, esp);
+
+    if (strcmp(temp, "inscription") == 0) {
+        temp = strtok(NULL, esp);
+        return estInscription(temp, strtok(NULL, esp), nb_inscrit, inscription);
+    }
+
+    else {
+        printf("error\n");
+        return 0;
+    }
+}
+
+int estInscription(char role[], const char nom[], int nb_inscrit, Inscription inscription[]) {
+    for (int i = 0; i != strlen(role); ++i)
+        inscription[nb_inscrit].role[i] = role[i];
+
+    for (int i = 0; i != strlen(nom); ++i)
+        inscription[nb_inscrit].nom[i] = nom[i];
+    ++nb_inscrit;
+    printf("Inscription realisee (%d)\n", nb_inscrit);
+    printf("role : %s\tnom : %s\n", role, nom);
+    return nb_inscrit;
+}
