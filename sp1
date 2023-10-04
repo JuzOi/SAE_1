@@ -19,7 +19,7 @@ int estInscription(char role[], char nom[], int nb_inscrit, Inscription inscript
 int main() {
     Inscription inscriptions[MAX_INSCRIPTIONS];
     int nb_inscrit = 0;
-    char commande[MAX_CARACTERES], exit[] = "exit";
+    char commande[MAX_CARACTERES], exit[] = "exit\0";
     bool test = true;
 
     while (test) {
@@ -47,7 +47,7 @@ int separer(char commande[], int nb_inscrit, Inscription inscription[]) {
     char esp[] = " ";
     char* temp = strtok(commande, esp);
 
-    if (strcmp(temp, "inscription") == 0) {
+    if (strcmp(temp, "inscription\0") == 0) {
         temp = strtok(NULL, esp);
         return estInscription(temp, strtok(NULL, esp), nb_inscrit, inscription);
     }
@@ -61,7 +61,7 @@ int separer(char commande[], int nb_inscrit, Inscription inscription[]) {
 int estInscription(char role[], const char nom[], int nb_inscrit, Inscription inscription[]) {
     bool test_role = true, test_nom = true;
 
-    if (strcmp(role, "OP") == 0 || strcmp(role, "AG") == 0 || strcmp(role, "IN") == 0)
+    if (strcmp(role, "OP\0") == 0 || strcmp(role, "AG\0") == 0 || strcmp(role, "IN\0") == 0)
         for (int i = 0; i != strlen(role); ++i) {
             inscription[nb_inscrit].role[i] = role[i];
         }
