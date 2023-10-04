@@ -59,12 +59,27 @@ int separer(char commande[], int nb_inscrit, Inscription inscription[]) {
 }
 
 int estInscription(char role[], const char nom[], int nb_inscrit, Inscription inscription[]) {
-    for (int i = 0; i != strlen(role); ++i)
-        inscription[nb_inscrit].role[i] = role[i];
+    bool test_role = true, test_nom = true;
 
-    for (int i = 0; i != strlen(nom); ++i)
-        inscription[nb_inscrit].nom[i] = nom[i];
-    ++nb_inscrit;
+    if (strcmp(role, "OP") == 0 || strcmp(role, "AG") == 0 || strcmp(role, "IN") == 0)
+        for (int i = 0; i != strlen(role); ++i) {
+            inscription[nb_inscrit].role[i] = role[i];
+        }
+
+    else{
+        test_role = false;
+        printf("Role incorrect\n");
+    }
+
+    for (int i = 0; i != nb_inscrit; ++i) {
+        if (strcmp(inscription[i].nom, nom) == 0)
+            test_nom = false;
+    }
+    if (test_role && test_nom) {
+        for (int j = 0; j != strlen(nom); ++j)
+            inscription[nb_inscrit].nom[j] = nom[j];
+        ++nb_inscrit;
+    }
     printf("Inscription realisee (%d)\n", nb_inscrit);
     printf("role : %s\tnom : %s\n", role, nom);
     return nb_inscrit;
