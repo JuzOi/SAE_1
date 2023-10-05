@@ -31,7 +31,7 @@ int main() {
             commande[len - 1] = '\0';
         }
 
-        if (strncmp(commande, exit, sizeof(exit) - 1) == 0) {
+        if (strncmp(commande, exit, sizeof(exit)) == 0) {
             test = false;
         }
         else {
@@ -53,34 +53,37 @@ int separer(char commande[], int nb_inscrit, Inscription inscription[]) {
     }
 
     else {
-        printf("error\n");
-        return 0;
+        printf("Error\n");
+        return nb_inscrit;
     }
 }
 
-int estInscription(char role[], const char nom[], int nb_inscrit, Inscription inscription[]) {
-    bool test_role = true, test_nom = true;
+int estInscription(char role[], char nom[], int nb_inscrit, Inscription inscription[]) {
+    bool test_nom = true;
 
-    if (strcmp(role, "OP\0") == 0 || strcmp(role, "AG\0") == 0 || strcmp(role, "IN\0") == 0)
-        for (int i = 0; i != strlen(role); ++i) {
-            inscription[nb_inscrit].role[i] = role[i];
+    if (strcmp(role, "OP\0") == 0 || strcmp(role, "AG\0") == 0 || strcmp(role, "IN\0") == 0) {
+        for (int i = 0; i != nb_inscrit; ++i) {
+            if (strcmp(inscription[i].nom, nom) == 0)
+                test_nom = false;
         }
+        if (test_nom) {
+            for (int i = 0; i != strlen(role); ++i) 
+                inscription[nb_inscrit].role[i] = role[i];
 
-    else{
-        test_role = false;
+            for (int j = 0; j != strlen(nom); ++j)
+                inscription[nb_inscrit].nom[j] = nom[j];
+            inscription[nb_inscrit].nom[strlen(nom)] = '\0';
+            ++nb_inscrit;
+            printf("Inscription realisee (%d)\n", nb_inscrit);
+            printf("role : %s\tnom : %s\n", role, nom);
+        }
+        else {
+            printf("Nom incorrect\n");
+        }
+    }
+
+    else {
         printf("Role incorrect\n");
     }
-
-    for (int i = 0; i != nb_inscrit; ++i) {
-        if (strcmp(inscription[i].nom, nom) == 0)
-            test_nom = false;
-    }
-    if (test_role && test_nom) {
-        for (int j = 0; j != strlen(nom); ++j)
-            inscription[nb_inscrit].nom[j] = nom[j];
-        ++nb_inscrit;
-    }
-    printf("Inscription realisee (%d)\n", nb_inscrit);
-    printf("role : %s\tnom : %s\n", role, nom);
     return nb_inscrit;
 }
