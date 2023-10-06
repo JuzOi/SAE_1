@@ -6,7 +6,7 @@
 #include <math.h>
 #pragma warning(disable : 4996)
 
-enum { MAX_INSCRIPTIONS = 50, MAX_CARACTERES = 47, MAX_ROLE = 3, MAX_NOM = 31};
+enum { MAX_INSCRIPTIONS = 50, MAX_CARACTERES = 47, MAX_ROLE = 3, MAX_NOM = 31, MAX_MISSIONS = 300 };
 
 typedef struct {
     char role[MAX_ROLE];
@@ -18,13 +18,14 @@ typedef struct {
     char nom[MAX_NOM];
     float renum;
     int niveau;
+    bool attribuee;
 }Mission;
 
 typedef struct {
     int nb_inscrit;
     int nb_mission;
     Inscription inscriptions[MAX_INSCRIPTIONS];
-    Mission missions[MAX_INSCRIPTIONS];
+    Mission missions[MAX_MISSIONS];
 }Data;
 
 void separer(char commande[], Data* data);
@@ -113,9 +114,10 @@ void estMission(unsigned int id, char nom[], float renum, Data* data) {
         if (renum < 0)
             printf("Remuneration incorrecte\n");
         else {
-            data->missions[data->nb_mission].id = id;
             data->missions[data->nb_mission].renum = roundf(renum * 100) /100;
             data->missions[data->nb_mission].niveau = 0;
+            data->missions[data->nb_mission].attribuee = false;
+            data->missions[data->nb_mission].id = id;
             for (int i = 0; i != strlen(nom); ++i)
                 data->missions[data->nb_mission].nom[i] = nom[i];
 
@@ -129,24 +131,22 @@ void estMission(unsigned int id, char nom[], float renum, Data* data) {
 }
 
 void estConsultation(Data* data) {
-    if (data->nb_mission == 0)
-        printf("Aucune mission disponible\n");
-
-    else
-        for (int i = 0; i != data->nb_mission; ++i) {
-            printf("%d %s %s %.2f (%d)\n", i+1, data->missions[i].nom, data->inscriptions[data->missions[i].id - 1].nom, data->missions[i].renum, data->missions[i].niveau);
+    bool test = false;
+    for (int i = 0; i != data->nb_mission; ++i) {
+        if (!data->missions[i].attribuee) {
+            printf("%d %s %s %.2f (%d)\n", i + 1, data->missions[i].nom, data->inscriptions[data->missions[i].id - 1].nom, data->missions[i].renum, data->missions[i].niveau);
+            test = true;
         }
+    }
+
+    if (!test)
+        printf("Aucune mission disponible\n");
 }
 
 void estDetail(int id, Data* data) {
-    bool test = false;
-    int i;
-    for (i = 0; i != data->nb_inscrit && !test; ++i) {
-        if (data->missions[i].id == id)
-            test = true;
+    if (!data->missions[id - 1].attribuee) {
+        printf("%d %s %s %.2f (%d)\n", id, data->missions[id - 1].nom, data->inscriptions[data->missions[id - 1].id - 1].nom, data->missions[id - 1].renum, data->missions[id - 1].niveau);
     }
-    if (test)
-        printf("%d %s %s %.2f (%d)\n", i + 1, data->missions[i].nom, data->inscriptions[data->missions[i].id - 1].nom, data->missions[i].renum, data->missions[i].niveau);
     else
         printf("Identifiant incorrect\n");
 }
