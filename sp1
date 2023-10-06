@@ -3,26 +3,42 @@
 #include <stdbool.h>
 #include <string.h>
 #include <ctype.h>
-#include <malloc.h>
+#include <math.h>
 #pragma warning(disable : 4996)
 
-enum { MAX_INSCRIPTIONS = 50, MAX_CARACTERES = 47, MAX_ROLE = 3, MAX_NOM = 31 };
+enum { MAX_INSCRIPTIONS = 50, MAX_CARACTERES = 47, MAX_ROLE = 3, MAX_NOM = 31};
 
 typedef struct {
     char role[MAX_ROLE];
     char nom[MAX_NOM];
 }Inscription;
 
-int separer(char commande[], int nb_inscrit, Inscription inscription[]);
-int estInscription(char role[], char nom[], int nb_inscrit, Inscription inscription[]);
+typedef struct {
+    unsigned int id;
+    char nom[MAX_NOM];
+    float renum;
+}Mission;
+
+typedef struct {
+    int nb_inscrit;
+    int nb_mission;
+    Inscription inscriptions[MAX_INSCRIPTIONS];
+    Mission missions[MAX_INSCRIPTIONS];
+}InscriptionData;
+
+void separer(char commande[], InscriptionData* data);
+void estInscription(char role[], char nom[], InscriptionData* data);
+void estMission(unsigned int id, char nom[], float renum, InscriptionData* data);
+void estConsultation(InscriptionData* data);
 
 int main() {
-    Inscription inscriptions[MAX_INSCRIPTIONS];
-    int nb_inscrit = 0;
+    InscriptionData data;
+    data.nb_inscrit = 0;
+    data.nb_mission = 0;
     char commande[MAX_CARACTERES], exit[] = "exit\0";
     bool test = true;
 
-    while (test) {
+    while (test && data.nb_inscrit < MAX_INSCRIPTIONS) {
         fgets(commande, MAX_CARACTERES, stdin);
 
         // Supprimer le caractère de saut de ligne s'il est présent
@@ -31,11 +47,11 @@ int main() {
             commande[len - 1] = '\0';
         }
 
-        if (strncmp(commande, exit, sizeof(exit)) == 0) {
+        if (strncmp(commande, exit, sizeof(exit)-1) == 0) {
             test = false;
         }
         else {
-            nb_inscrit = separer(commande, nb_inscrit, inscriptions);
+            separer(commande, &data);
         }
     }
 
@@ -43,39 +59,40 @@ int main() {
     return 0;
 }
 
-int separer(char commande[], int nb_inscrit, Inscription inscription[]) {
+void separer(char commande[], InscriptionData* data) {
     char esp[] = " ";
     char* temp = strtok(commande, esp);
 
     if (strcmp(temp, "inscription\0") == 0) {
         temp = strtok(NULL, esp);
-        return estInscription(temp, strtok(NULL, esp), nb_inscrit, inscription);
+        temp[sizeof(data->inscriptions[data->nb_inscrit].role) - 1] = '\0';
+        estInscription(temp, strtok(NULL, esp), data);
     }
 
-    else {
-        printf("Error\n");
-        return nb_inscrit;
+    else if (strcmp(temp, "mission\0") == 0) {
+        temp = strtok(NULL, esp);
+        char* temp2 = strtok(NULL, esp);
+        estMission(atoi(temp), temp2, atof(strtok(NULL, esp)), data);
     }
 }
 
-int estInscription(char role[], char nom[], int nb_inscrit, Inscription inscription[]) {
+void estInscription(char role[], char nom[], InscriptionData* data) {
     bool test_nom = true;
-
     if (strcmp(role, "OP\0") == 0 || strcmp(role, "AG\0") == 0 || strcmp(role, "IN\0") == 0) {
-        for (int i = 0; i != nb_inscrit; ++i) {
-            if (strcmp(inscription[i].nom, nom) == 0)
+        for (int i = 0; i != data->nb_inscrit; ++i) {
+            if (strcmp(data->inscriptions[i].nom, nom) == 0)
                 test_nom = false;
         }
         if (test_nom) {
-            for (int i = 0; i != strlen(role); ++i) 
-                inscription[nb_inscrit].role[i] = role[i];
+            for (int i = 0; i != strlen(role); ++i)
+                data->inscriptions[data->nb_inscrit].role[i] = role[i];
+            for (int i = 0; i != strlen(nom); ++i)
+                data->inscriptions[data->nb_inscrit].nom[i] = nom[i];
 
-            for (int j = 0; j != strlen(nom); ++j)
-                inscription[nb_inscrit].nom[j] = nom[j];
-            inscription[nb_inscrit].nom[strlen(nom)] = '\0';
-            ++nb_inscrit;
-            printf("Inscription realisee (%d)\n", nb_inscrit);
-            printf("role : %s\tnom : %s\n", role, nom);
+            data->inscriptions[data->nb_inscrit].nom[strlen(nom)] = '\0';
+            data->inscriptions[data->nb_inscrit].role[strlen(role)] = '\0';
+            ++data->nb_inscrit;
+            printf("Inscription realisee (%d)\n", data->nb_inscrit);
         }
         else {
             printf("Nom incorrect\n");
@@ -85,5 +102,28 @@ int estInscription(char role[], char nom[], int nb_inscrit, Inscription inscript
     else {
         printf("Role incorrect\n");
     }
-    return nb_inscrit;
+}
+
+void estMission(unsigned int id, char nom[], float renum, InscriptionData* data) {
+    bool test_id = true;
+    
+    if (strcmp(data->inscriptions[id - 1].role, "OP\0") == 0) {
+        if (renum < 0)
+            printf("Remuneration incorrecte\n");
+        else {
+            data->missions[data->nb_mission].id = id;
+            data->missions[data->nb_mission].renum = roundf(renum * 100) /100;
+            for (int i = 0; i != strlen(nom); ++i)
+                data->missions[data->nb_mission].nom[i] = nom[i];
+
+            data->missions[data->nb_mission].nom[strlen(nom)] = '\0';
+            ++data->nb_mission;
+            printf("Mission publiee (%d)", data->nb_mission);
+        }
+    }
+    else
+        printf("Identifiant incorrect\n");
+}
+
+void estConsultation(InscriptionData* data) {
 }
