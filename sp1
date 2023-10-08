@@ -6,7 +6,10 @@
 #include <math.h>
 #pragma warning(disable : 4996)
 
-enum { MAX_INSCRIPTIONS = 50, MAX_CARACTERES = 47, MAX_ROLE = 3, MAX_NOM = 31, MAX_MISSIONS = 300 };
+enum { MAX_INSCRIPTIONS = 50, MAX_CARACTERES = 47, MAX_ROLE = 3, MAX_NOM = 31, MAX_MISSIONS = 500 };
+const char EXIT[] = "exit\0", ESP[] = " ", OP[] = "OP\0", AG[] = "AG\0", IN[] = "IN\0", INSCRIPTION[] = "inscription\0",
+            MISSION[] = "mission\0", CONSULTATION[] = "consultation\0", DETAIL[] = "detail\0", ACCEPTATION[] = "acceptation\0", 
+            SOUS_TRAITANCE[] = "sous-traitance\0", RAPPORT[] = "rapport\0";
 
 typedef struct {
     char role[MAX_ROLE];
@@ -24,23 +27,28 @@ typedef struct {
 typedef struct {
     int nb_inscrit;
     int nb_mission;
-    Inscription inscriptions[MAX_INSCRIPTIONS];
-    Mission missions[MAX_MISSIONS];
+    Inscription *inscriptions;
+    Mission *missions;
 }Data;
 
 void separer(char commande[], Data* data);
-void estInscription(char role[], char nom[], Data* data);
-void estMission(unsigned int id, char nom[], float renum, Data* data);
+void estErreur(unsigned int n);
+void estInscription(char* role, char* nom, Data* data);
+void estMission(unsigned int id, char* nom, float renum, Data* data);
 void estConsultation(Data* data);
 void estDetail(unsigned int id, Data* data);
 void estAcceptation(unsigned int id_op, unsigned int id_mission, Data* data);
 void estSoustraitance(unsigned int id_ag, unsigned int id_mission, float renum, Data* data);
+void estRapport(Data* data);
 
 void main() {
     Data data;
     data.nb_inscrit = 0;
     data.nb_mission = 0;
-    char commande[MAX_CARACTERES], exit[] = "exit\0";
+    data.inscriptions = (Inscription*)malloc(MAX_INSCRIPTIONS * sizeof(Inscription));
+    data.missions = (Mission*)malloc(MAX_MISSIONS * sizeof(Mission));
+
+    char commande[MAX_CARACTERES];
     bool test = true;
 
     while (test && data.nb_inscrit < MAX_INSCRIPTIONS) {
@@ -50,51 +58,96 @@ void main() {
         size_t len = strlen(commande);
         commande[len - 1] = '\0';
 
-        if (strcmp(commande, exit) == 0) 
+        if (strcmp(commande, EXIT) == 0)
             test = false;
-        
-        else if (len > 1 && strcmp(commande, " ") != 0)
+
+        else if (len > 1 && strcmp(commande, ESP) != 0)
             separer(commande, &data);
-        
+
     }
+    free(data.inscriptions);
+    free(data.missions);
 }
 
 void separer(char commande[], Data* data) {
-    char esp[] = " ";
-    char* temp = strtok(commande, esp);
+    char* temp = strtok(commande, ESP);
 
-    if (strcmp(temp, "inscription\0") == 0) {
-        temp = strtok(NULL, esp);
+    if (strcmp(temp, INSCRIPTION) == 0) {
+        temp = strtok(NULL, ESP);
         temp[sizeof(data->inscriptions[data->nb_inscrit].role) - 1] = '\0';
-        estInscription(temp, strtok(NULL, esp), data);
+        estInscription(temp, strtok(NULL, ESP), data);
     }
 
-    else if (strcmp(temp, "mission\0") == 0) {
-        temp = strtok(NULL, esp);
-        char* temp2 = strtok(NULL, esp);
-        estMission(atoi(temp), temp2, atof(strtok(NULL, esp)), data);
+    else if (strcmp(temp, MISSION) == 0) {
+        temp = strtok(NULL, ESP);
+        char* temp2 = strtok(NULL, ESP);
+        char* temp3 = strtok(NULL, ESP);
+
+        if (strcmp(data->inscriptions[atoi(temp) - 1].role, OP) == 0){
+            if (atof(temp3) > 0) {
+                estMission(atoi(temp), temp2, atof(temp3), data);
+                printf("Mission publiee (%d)\n", data->nb_mission);
+            }
+            else
+                estErreur(6);
+        }
+        else
+            estErreur(2);
     }
-    else if (strcmp(temp, "consultation\0") == 0) {
+    else if (strcmp(temp, CONSULTATION) == 0) {
         estConsultation(data);
     }
-    else if (strcmp(temp, "detail\0") == 0) {
-        temp = strtok(NULL, esp);
+    else if (strcmp(temp, DETAIL) == 0) {
+        temp = strtok(NULL, ESP);
         estDetail(atoi(temp), data);
     }
-    else if (strcmp(temp, "acceptation\0") == 0) {
-        temp = strtok(NULL, esp);
-        estAcceptation(atoi(temp), atoi(strtok(NULL, esp)), data);
+    else if (strcmp(temp, ACCEPTATION) == 0) {
+        temp = strtok(NULL, ESP);
+        estAcceptation(atoi(temp), atoi(strtok(NULL, ESP)), data);
     }
-    else if (strcmp(temp, "sous-traitance\0") == 0) {
-        temp = strtok(NULL, esp);
-        char* temp2 = strtok(NULL, esp);
-        estSoustraitance(atoi(temp), atoi(temp2), atof(strtok(NULL, esp)), data);
+    else if (strcmp(temp, SOUS_TRAITANCE) == 0) {
+        temp = strtok(NULL, ESP);
+        char* temp2 = strtok(NULL, ESP);
+        estSoustraitance(atoi(temp), atoi(temp2), atof(strtok(NULL, ESP)), data);
+    }
+    else if (strcmp(temp, RAPPORT) == 0) {
+        estRapport(data);
     }
 }
 
-void estInscription(char role[], char nom[], Data* data) {
+void estErreur(unsigned int n) {
+    switch (n)
+    {
+        case 0 : 
+            printf("Role incorrect\n");
+            break;
+        case 1 :
+            printf("Nom incorrect\n");
+            break;
+        case 2:
+            printf("Identifiant incorrect\n");
+            break;
+        case 3:
+            printf("Aucune mission disponible\n");
+            break;
+        case 4  :
+            printf("Mission incorrecte\n");
+            break;
+        case 5:
+            printf("Entreprise incorrecte\n");
+            break;
+        case 6 :
+            printf("Remuneration incorrecte\n");
+            break;
+    default:
+        break;
+    }
+}
+
+
+void estInscription(char* role, char* nom, Data* data) {
     bool test_nom = true;
-    if (strcmp(role, "OP\0") == 0 || strcmp(role, "AG\0") == 0 || strcmp(role, "IN\0") == 0) {
+    if (strcmp(role, OP) == 0 || strcmp(role, AG) == 0 || strcmp(role, IN) == 0) {
         for (int i = 0; i != data->nb_inscrit; ++i) {
             if (strcmp(data->inscriptions[i].nom, nom) == 0)
                 test_nom = false;
@@ -111,34 +164,24 @@ void estInscription(char role[], char nom[], Data* data) {
             printf("Inscription realisee (%d)\n", data->nb_inscrit);
         }
         else {
-            printf("Nom incorrect\n");
+            estErreur(1);
         }
     }
 
     else {
-        printf("Role incorrect\n");
+        estErreur(0);
     }
 }
 
-void estMission(unsigned int id, char nom[], float renum, Data* data) {
-    if (strcmp(data->inscriptions[id - 1].role, "OP\0") == 0) {
-        if (renum < 0)
-            printf("Remuneration incorrecte\n");
-        else {
-            data->missions[data->nb_mission].renum = roundf(renum * 100) /100;
-            data->missions[data->nb_mission].niveau = 0;
-            data->missions[data->nb_mission].attribuee = false;
-            data->missions[data->nb_mission].id = id;
-            for (int i = 0; i != strlen(nom); ++i)
-                data->missions[data->nb_mission].nom[i] = nom[i];
-
-            data->missions[data->nb_mission].nom[strlen(nom)] = '\0';
-            ++data->nb_mission;
-            printf("Mission publiee (%d)\n", data->nb_mission);
-        }
-    }
-    else
-        printf("Identifiant incorrect\n");
+void estMission(unsigned int id, char* nom, float renum, Data* data) {
+    data->missions[data->nb_mission].renum = roundf(renum * 100) / 100;
+    data->missions[data->nb_mission].niveau = 0;
+    data->missions[data->nb_mission].attribuee = false;
+    data->missions[data->nb_mission].id = id;
+    for (int i = 0; i != strlen(nom); ++i)
+        data->missions[data->nb_mission].nom[i] = nom[i];
+    data->missions[data->nb_mission].nom[strlen(nom)] = '\0';
+    ++data->nb_mission;
 }
 
 void estConsultation(Data* data) {
@@ -151,7 +194,7 @@ void estConsultation(Data* data) {
     }
 
     if (!test)
-        printf("Aucune mission disponible\n");
+        estErreur(3);
 }
 
 void estDetail(unsigned int id, Data* data) {
@@ -159,52 +202,48 @@ void estDetail(unsigned int id, Data* data) {
         printf("%u %s %s %.2f (%d)\n", id, data->missions[id - 1].nom, data->inscriptions[data->missions[id - 1].id - 1].nom, data->missions[id - 1].renum, data->missions[id - 1].niveau);
     }
     else
-        printf("Identifiant incorrect\n");
+        estErreur(2);
 }
 
 void estAcceptation(unsigned int id_op, unsigned int id_mission, Data* data) {
-    if (strcmp(data->inscriptions[id_op - 1].role, "OP\0") != 0) {
+    if (strcmp(data->inscriptions[id_op - 1].role, OP) != 0) {
         if (!data->missions[id_mission - 1].attribuee) {
             data->missions[id_mission - 1].attribuee = true;
             data->missions[id_mission - 1].id = id_op;
             printf("Acceptation enregistree\n");
         }
         else
-            printf("Mission incorrecte\n");
+            estErreur(4);
     }
     else
-        printf("Entreprise incorrecte\n");
+        estErreur(5);
 }
 
 void estSoustraitance(unsigned int id_ag, unsigned int id_mission, float renum, Data* data) {
-    if (strcmp(data->inscriptions[id_ag - 1].role, "AG\0") == 0) {
+    if (strcmp(data->inscriptions[id_ag - 1].role, AG) == 0) {
         if (!data->missions[id_mission - 1].attribuee && data->missions[id_mission - 1].niveau <= 5) {
             if (renum > 0) {
                 data->missions[id_mission - 1].attribuee = true;
                 ++data->missions[id_mission - 1].niveau;
 
-                data->missions[data->nb_mission].renum = roundf(renum * 100) / 100;
-                data->missions[data->nb_mission].niveau = 0;
-                data->missions[data->nb_mission].attribuee = false;
-                data->missions[data->nb_mission].id = id_ag;
-                for (int i = 0; i != strlen(data->inscriptions[id_ag-1].nom); ++i)
-                    data->missions[data->nb_mission].nom[i] = data->inscriptions[id_ag - 1].nom[i];
-                data->missions[data->nb_mission].nom[strlen(data->inscriptions[id_ag - 1].nom)] = '\0';
-
-                ++data->nb_mission;
-
+                estMission(id_ag, data->inscriptions[id_ag - 1].nom, renum, data);
                 printf("Sous-traitance enregistree (%u)\n", data->nb_mission);
             }
             else
-                printf("Remuneration incorrecte\n");
+                estErreur(6);
         }
         else
-            printf("Mission incorrecte\n");
+            estErreur(4);
     }
     else
-        printf("Entreprise incorrecte\n");
+        estErreur(5);
 }
 
 void estRapport(Data* data) {
-
+    printf("Inscrit : \n");
+    for (int i = 0; i != data->nb_inscrit; ++i)
+        printf("Role : %s\tNom : %s\n", data->inscriptions[i].role, data->inscriptions[i].nom);
+    printf("\n\nMission : \n");
+    for (int i = 0; i != data->nb_mission; ++i)
+        printf("id : %d\tnom : %s\trenum : %f\tniveau : %d\tattribuee : %s\n", data->missions[i].id, data->missions[i].nom, data->missions[i].renum, data->missions[i].niveau, data->missions[i].attribuee ? "true" : "false");
 }
