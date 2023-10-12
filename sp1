@@ -6,11 +6,11 @@
 #include <math.h>
 #pragma warning(disable : 4996)
 
-enum { MAX_INSCRIPTIONS = 50, MAX_CARACTERES = 47, MAX_ROLE = 3, MAX_NOM = 31, MAX_MISSIONS = 500 };
+enum { MAX_INSCRIPTIONS = 50, MAX_CARACTERES = 47, MAX_ROLE = 3, MAX_NOM = 31, MAX_MISSIONS = 500, MAX_RAPPORT = 3 };
 
 const char EXIT[] = "exit", ESP[] = " ", OP[] = "OP", AG[] = "AG", IN[] = "IN", INSCRIPTION[] = "inscription",
 MISSION[] = "mission", CONSULTATION[] = "consultation", DETAIL[] = "detail", ACCEPTATION[] = "acceptation",
-SOUS_TRAITANCE[] = "sous-traitance", RAPPORT[] = "rapport";
+SOUS_TRAITANCE[] = "sous-traitance", RAPPORT[] = "rapport", RECAPITULATIF[] = "recapitulatif";
 
 typedef struct {
     char role[MAX_ROLE];
@@ -24,6 +24,7 @@ typedef struct {
     double renum;
     int niveau;
     unsigned char etat;
+    int rapport[MAX_RAPPORT];
 }Mission;
 
 typedef struct {
@@ -44,6 +45,7 @@ void estAcceptation(unsigned int id_op, unsigned int id_mission, Data* data);
 void estSoustraitance(unsigned int id_ag, unsigned int id_mission, double renum, Data* data);
 void estRapport(unsigned int id_mission, unsigned int code, Data* data);
 void attribRapport(unsigned int id_mission, unsigned int code, Data* data);
+void recapitulatif(unsigned int id_ent, Data* data);
 
 
 int main() {
@@ -110,6 +112,9 @@ void separer(char commande[], Data* data) {
         temp = strtok(NULL, ESP);
         estRapport(atoi(temp), atoi(strtok(NULL, ESP)), data);
     }
+    else if (strcmp(temp, RECAPITULATIF) == 0) {
+        recapitulatif(atoi(strtok(NULL, ESP)), data);
+    }
 }
 
 void estErreur(unsigned int n) {
@@ -136,7 +141,7 @@ void estErreur(unsigned int n) {
     case 6:
         printf("Remuneration incorrecte\n");
         break;
-    case 7 :
+    case 7:
         printf("Code de retour incorrect\n");
         break;
     default:
@@ -188,6 +193,8 @@ void attribMission(unsigned int id, char* nom, double renum, Data* data) {
     data->missions[data->nb_mission].id_E = id;
     data->missions[data->nb_mission].id_M = data->nb_mission;
     strcpy(data->missions[data->nb_mission].nom, nom);
+    for (int i = 0; i != MAX_RAPPORT; ++i)
+        data->missions[data->nb_mission].rapport[i] = 0;
     ++data->nb_mission;
 }
 
@@ -207,6 +214,12 @@ void estConsultation(const Data* data) {
 void estDetail(unsigned int id, const Data* data) {
     if (!data->missions[id - 1].etat) {
         printf("%u %s %s %.2f (%d)\n", id, data->missions[id - 1].nom, data->inscriptions[data->missions[id - 1].id_E - 1].nom, data->missions[id - 1].renum, data->missions[id - 1].niveau);
+        if (data->missions[id - 1].rapport[0] == 1)
+            printf("Local non accessible\n");
+        if (data->missions[id - 1].rapport[1] == 1)
+            printf("Pas de signal dans le boitier general\n");
+        if (data->missions[id - 1].rapport[2] == 1)
+            printf("Recepteur defectueux\n");
     }
     else
         estErreur(2);
@@ -232,9 +245,11 @@ void estSoustraitance(unsigned int id_ag, unsigned int id_mission, double renum,
                 unsigned int id_temp = data->missions[id_mission - 1].id_M;
                 data->missions[id_mission - 1].etat = 1;
 
-                attribMission(id_ag, data->missions[id_mission -1].nom, renum, data);
+                attribMission(id_ag, data->missions[id_mission - 1].nom, renum, data);
                 ++data->missions[data->nb_mission - 1].niveau;
                 data->missions[data->nb_mission - 1].id_M = id_temp;
+                for (int i = 0; i != MAX_RAPPORT; ++i) 
+                    data->missions[data->nb_mission - 1].rapport[i] = data->missions[id_mission - 1].rapport[i];
 
                 printf("Sous-traitance enregistree (%u)\n", data->nb_mission);
             }
@@ -265,19 +280,43 @@ void attribRapport(unsigned int id_mission, unsigned int code, Data* data) {
             if (data->missions[i].id_M == id_mission)
                 data->missions[i].etat = 2;
         }
+        printf("Rapport enregistre\n");
     }
     else if (code == 1) {
         attribMission(data->missions[id_mission - 1].id_E, data->missions[id_mission - 1].nom, data->missions[id_mission - 1].renum, data);
+        data->missions[data->nb_mission-1].rapport[code-1] = 1;
         printf("Rapport enregistre (%d)\n", data->nb_mission);
     }
     else if (code == 2) {
         double renum = data->missions[id_mission - 1].renum + (data->missions[id_mission - 1].renum * 0.055);
         attribMission(data->missions[id_mission - 1].id_E, data->missions[id_mission - 1].nom, renum, data);
+        data->missions[data->nb_mission-1].rapport[code - 1] = 1;
         printf("Rapport enregistre (%d)\n", data->nb_mission);
     }
-    else{
+    else {
         double renum = data->missions[id_mission - 1].renum + (data->missions[id_mission - 1].renum * 0.040);
         attribMission(data->missions[id_mission - 1].id_E, data->missions[id_mission - 1].nom, renum, data);
+        data->missions[data->nb_mission-1].rapport[code - 1] = 1;
         printf("Rapport enregistre (%d)\n", data->nb_mission);
     }
+}
+
+void recapitulatif(unsigned int id_ent, Data* data) {
+    if ((strcmp(data->inscriptions[id_ent - 1].role, OP) == 0 ) || (strcmp(data->inscriptions[id_ent - 1].role, AG) == 0) || (strcmp(data->inscriptions[id_ent - 1].role, IN) == 0))
+        for (int i = 0; i != data->nb_mission; ++i) {
+            if (data->missions[i].id_E == id_ent) {
+                if (data->missions[i].etat == 0)
+                    printf("* non attribuees\n");
+                if (data->missions[i].etat == 1)
+                    printf("* attribuees\n");
+                if (data->missions[i].etat == 2)
+                    printf("* terminees\n");
+                if (data->missions[i].etat == 3)
+                    printf("* a realiser\n");
+                if (data->missions[i].etat == 4)
+                    printf("* realisees\n");
+
+                printf(" %u %s %s %.2f (%u)\n", i+1, data->missions[i].nom, data->inscriptions[id_ent - 1].nom, data->missions[i].renum, data->missions[i].niveau);
+            }
+        }
 }
