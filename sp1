@@ -35,14 +35,15 @@ typedef struct {
 
 void separer(char commande[], Data* data);
 void estErreur(unsigned int n);
-void affiche(unsigned int id, char* nom_mission, char* nom_entreprise, float remun, int niveau);
+void affiche(unsigned int id, char* nom_mission, char* nom_entreprise, double remun, int niveau, Data* data);
 void estInscription(char* role, char* nom, Data* data);
 void estMission(unsigned int id, char* nom, double remun, Data* data);
 void attribMission(unsigned int id, char* nom, double remun, Data* data);
-void estConsultation(const Data* data);
-void estDetail(unsigned int id, const Data* data);
+void estConsultation(Data* data);
+void estDetail(unsigned int id, Data* data);
 void estAcceptation(unsigned int id_op, unsigned int id_mission, Data* data);
 void estSoustraitance(unsigned int id_ag, unsigned int id_mission, double remun, Data* data);
+void soustraitance(unsigned int id_ag, unsigned int id_mission, double remun, Data* data);
 void estRapport(unsigned int id_mission, unsigned int code, Data* data);
 void attribRapport(unsigned int id_mission, unsigned int code, Data* data);
 void recapitulatif(unsigned int id_ent, Data* data);
@@ -84,7 +85,7 @@ void separer(char commande[], Data* data) {
 
     else if (strcmp(temp, INSCRIPTION) == 0) {
         temp = strtok(NULL, ESP);
-        temp[sizeof(data->inscriptions[data->nb_inscrit].role) - 1] = '\0';
+        temp[sizeof(data->inscriptions[data->nb_inscrit].role)-1] = '\0';
         estInscription(temp, strtok(NULL, ESP), data);
     }
 
@@ -150,8 +151,27 @@ void estErreur(unsigned int n) {
     }
 }
 
-void affiche(unsigned int id, char* nom_mission, char* nom_entreprise, float remun, int niveau) {
-    printf("%-3u %-7s %-8s %-6.2f (%d)\n", id, nom_mission, nom_entreprise, remun, niveau);
+void affiche(unsigned int id, char* nom_mission, char* nom_entreprise, double remun, int niveau, Data* data) {
+    unsigned int id_taille = 0, mission_taille = 0, ent_taille = 0, remun_taille = 2;
+    unsigned int id_temp = id;
+    double remun_temp = remun;
+
+    for (int i = 0; i != data->nb_mission; ++i) {
+        if (id_temp != 0) {
+            id_temp /= 10;
+            ++id_taille;
+        }
+        if (remun_temp != 0) {
+            remun_temp /= 10;
+            remun_taille += 1;
+        }
+        if (strlen(nom_mission) > mission_taille)
+            mission_taille = strlen(nom_mission);
+        if (strlen(nom_entreprise) > ent_taille)
+            ent_taille = strlen(nom_entreprise);
+    }
+
+    printf("%-*u %-*s %-*s %-*.2f (%d)\n", id_taille, id, mission_taille, nom_mission, ent_taille, nom_entreprise, remun_taille, remun, niveau);
 }
 
 void estInscription(char* role, char* nom, Data* data) {
@@ -204,11 +224,11 @@ void attribMission(unsigned int id, char* nom, double remun, Data* data) {
     ++data->nb_mission;
 }
 
-void estConsultation(const Data* data) {
+void estConsultation(Data* data) {
     bool test = false;
     for (int i = 0; i != data->nb_mission; ++i) {
         if (data->missions[i].etat[0] == -1) {
-            affiche(i + 1, data->missions[i].nom, data->inscriptions[data->missions[i].etat[1] - 1].nom, data->missions[i].remun, data->missions[i].niveau);
+            affiche(i + 1, data->missions[i].nom, data->inscriptions[data->missions[i].etat[1] - 1].nom, data->missions[i].remun, data->missions[i].niveau, data);
             test = true;
         }
     }
@@ -217,9 +237,9 @@ void estConsultation(const Data* data) {
         estErreur(3);
 }
 
-void estDetail(unsigned int id, const Data* data) {
+void estDetail(unsigned int id, Data* data) {
     if (data->missions[id - 1].etat[0] == -1) {
-        affiche(id, data->missions[id - 1].nom, data->inscriptions[data->missions[id - 1].etat[1] - 1].nom, data->missions[id - 1].remun, data->missions[id - 1].niveau);
+        affiche(id, data->missions[id - 1].nom, data->inscriptions[data->missions[id - 1].etat[1] - 1].nom, data->missions[id - 1].remun, data->missions[id - 1].niveau, data);
         if (data->missions[id - 1].rapport[0] == 1)
             printf("Local non accessible\n");
         if (data->missions[id - 1].rapport[1] == 1)
@@ -249,15 +269,7 @@ void estSoustraitance(unsigned int id_ag, unsigned int id_mission, double remun,
     if (strcmp(data->inscriptions[id_ag - 1].role, AG) == 0) {
         if (data->missions[id_mission - 1].etat[0] == -1 && data->missions[id_mission - 1].niveau <= 5) {
             if (remun > 0) {
-                unsigned int id_temp = data->missions[id_mission - 1].id_M;
-                data->missions[id_mission - 1].etat[0] = id_ag;
-
-                attribMission(id_ag, data->missions[id_mission - 1].nom, remun, data);
-                ++data->missions[data->nb_mission - 1].niveau;
-                data->missions[data->nb_mission - 1].id_M = id_temp;
-                for (int i = 0; i != MAX_RAPPORT; ++i)
-                    data->missions[data->nb_mission - 1].rapport[i] = data->missions[id_mission - 1].rapport[i];
-
+                soustraitance(id_ag, id_mission, remun, data);
                 printf("Sous-traitance enregistree (%u)\n", data->nb_mission);
             }
             else
@@ -268,6 +280,17 @@ void estSoustraitance(unsigned int id_ag, unsigned int id_mission, double remun,
     }
     else
         estErreur(5);
+}
+
+void soustraitance(unsigned int id_ag, unsigned int id_mission, double remun, Data* data) {
+    unsigned int id_temp = data->missions[id_mission - 1].id_M;
+    data->missions[id_mission - 1].etat[0] = id_ag;
+
+    attribMission(id_ag, data->missions[id_mission - 1].nom, remun, data);
+    ++data->missions[data->nb_mission - 1].niveau;
+    data->missions[data->nb_mission - 1].id_M = id_temp;
+    for (int i = 0; i != MAX_RAPPORT; ++i)
+        data->missions[data->nb_mission - 1].rapport[i] = data->missions[id_mission - 1].rapport[i];
 }
 
 void estRapport(unsigned int id_mission, unsigned int code, Data* data) {
@@ -286,7 +309,7 @@ void estRapport(unsigned int id_mission, unsigned int code, Data* data) {
 
 void attribRapport(unsigned int id_mission, unsigned int code, Data* data) {
     for (int i = 0; i != data->nb_mission; ++i) {
-        if (data->missions[i].id_M == data->missions[id_mission -1].id_M)
+        if (data->missions[i].id_M == data->missions[id_mission - 1].id_M)
             data->missions[i].etat[2] = 1;
     }
     if (code == 0)
@@ -303,7 +326,7 @@ void attribRapport(unsigned int id_mission, unsigned int code, Data* data) {
         data->missions[data->nb_mission - 1].rapport[code - 1] = 1;
         printf("Rapport enregistre (%d)\n", data->nb_mission);
     }
-    else if (code == 3){
+    else if (code == 3) {
         double remun = data->missions[id_mission - 1].remun + (data->missions[id_mission - 1].remun * 0.040);
         attribMission(data->missions[id_mission - 1].etat[1], data->missions[id_mission - 1].nom, remun, data);
         data->missions[data->nb_mission - 1].rapport[code - 1] = 1;
@@ -329,42 +352,42 @@ void recapitulatif(unsigned int id_ent, Data* data) {
         }
 
         if (non_attrib) {
-            printf("* non attribuees\n  ");
+            printf("* non attribuees\n");
             for (int i = 0; i != data->nb_mission; ++i) {
                 if (data->missions[i].etat[1] == id_ent && data->missions[i].etat[0] == -1) {
-                    affiche(i + 1, data->missions[i].nom, data->inscriptions[data->missions[i].etat[1]-1].nom, data->missions[i].remun, data->missions[i].niveau);
+                    affiche(i + 1, data->missions[i].nom, data->inscriptions[data->missions[i].etat[1] - 1].nom, data->missions[i].remun, data->missions[i].niveau, data);
                 }
             }
         }
         if (attrib) {
-            printf("* attribuees\n  ");
+            printf("* attribuees\n");
             for (int i = 0; i != data->nb_mission; ++i) {
                 if (data->missions[i].etat[1] == id_ent && data->missions[i].etat[0] != -1 && data->missions[i].etat[0] != id_ent && !data->missions[i].etat[2]) {
-                    affiche(i + 1, data->missions[i].nom, data->inscriptions[data->missions[i].etat[1] - 1].nom, data->missions[i].remun, data->missions[i].niveau);
+                    affiche(i + 1, data->missions[i].nom, data->inscriptions[data->missions[i].etat[1] - 1].nom, data->missions[i].remun, data->missions[i].niveau, data);
                 }
             }
         }
         if (termine) {
-            printf("* terminees\n  ");
+            printf("* terminees\n");
             for (int i = 0; i != data->nb_mission; ++i) {
                 if (data->missions[i].etat[1] == id_ent && data->missions[i].etat[2]) {
-                    affiche(i + 1, data->missions[i].nom, data->inscriptions[data->missions[i].etat[1] - 1].nom, data->missions[i].remun, data->missions[i].niveau);
+                    affiche(i + 1, data->missions[i].nom, data->inscriptions[data->missions[i].etat[1] - 1].nom, data->missions[i].remun, data->missions[i].niveau, data);
                 }
             }
         }
         if (a_real) {
-            printf("* a realiser\n  ");
+            printf("* a realiser\n");
             for (int i = 0; i != data->nb_mission; ++i) {
                 if (data->missions[i].etat[3] == id_ent && !data->missions[i].etat[2]) {
-                    affiche(i + 1, data->missions[i].nom, data->inscriptions[data->missions[i].etat[1] - 1].nom, data->missions[i].remun, data->missions[i].niveau);
+                    affiche(i + 1, data->missions[i].nom, data->inscriptions[data->missions[i].etat[1] - 1].nom, data->missions[i].remun, data->missions[i].niveau, data);
                 }
             }
         }
         if (real) {
-            printf("* realiser\n  ");
+            printf("* realisees\n");
             for (int i = 0; i != data->nb_mission; ++i) {
                 if (data->missions[i].etat[3] == id_ent && data->missions[i].etat[2]) {
-                    affiche(i + 1, data->missions[i].nom, data->inscriptions[data->missions[i].etat[1] - 1].nom, data->missions[i].remun, data->missions[i].niveau);
+                    affiche(i + 1, data->missions[i].nom, data->inscriptions[data->missions[i].etat[1] - 1].nom, data->missions[i].remun, data->missions[i].niveau, data);
                 }
             }
         }
