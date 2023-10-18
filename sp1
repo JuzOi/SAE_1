@@ -32,8 +32,8 @@ typedef struct {
 }Mission;
 
 typedef struct {
-    int nb_inscrit;
-    int nb_mission;
+    unsigned int nb_inscrit;
+    unsigned int nb_mission;
     Inscription inscriptions[MAX_INSCRIPTIONS];
     Mission missions[MAX_MISSIONS];
 }Data;
@@ -167,7 +167,7 @@ void estErreur(unsigned int n) {
     }
 }
 
-void affiche(unsigned int id, char* nom_mission, char* nom_entreprise, double remun, int niveau, const Data* data) {
+void affiche(const unsigned int id, const char* nom_mission, const char* nom_entreprise, const double remun, const int niveau, const Data* data) {
     unsigned int id_taille = 0, mission_taille = 0, ent_taille = 0, remun_taille = 0,
         id_temp = data->nb_mission;
     double remun_temp = 0.;
