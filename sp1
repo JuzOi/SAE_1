@@ -64,11 +64,11 @@ void soustraitance(unsigned int id_ag, unsigned int id_mission, double remun, Da
 void estRapport(unsigned int id_mission, unsigned int code, Data* data);
 void attribRapport(unsigned int id_mission, unsigned int code, Data* data);
 void recapitulatif(unsigned int id_ent, Data* data);
-void non_attribuee(unsigned int id_ent, Data* data);
-void attribuee(unsigned int id_ent, Data* data);
-void terminees(unsigned int id_ent, Data* data);
-void a_realiser(unsigned int id_ent, Data* data);
-void realisees(unsigned int id_ent, Data* data);
+void non_attribuee(unsigned int id_ent, unsigned int* align, Data* data);
+void attribuee(unsigned int id_ent, unsigned int* align, Data* data);
+void terminees(unsigned int id_ent, unsigned int* align, Data* data);
+void a_realiser(unsigned int id_ent, unsigned int* align, Data* data);
+void realisees(unsigned int id_ent, unsigned int* align, Data* data);
 
 
 int main() {
@@ -176,8 +176,8 @@ void affiche(const unsigned int id, const char* nom_mission, const char* nom_ent
     printf("%-*u %-*s %-*s %*.2f (%d)\n", align[ID0], id, align[ID1], nom_mission, align[ID2], nom_entreprise, align[ID3], remun, niveau);
 }
 
-void alignement(unsigned int index, unsigned int *id_taille, unsigned int *nom_taille, unsigned int *ent_taille, unsigned int *remun_taille, const Data* data) {
-    unsigned int id_temp = data->missions[index].id_M, id_temp_taille = 0, remun_temp_taille =0;
+void alignement(unsigned int index, unsigned int* id_taille, unsigned int* nom_taille, unsigned int* ent_taille, unsigned int* remun_taille, const Data* data) {
+    unsigned int id_temp = data->missions[index].id_M, id_temp_taille = 0, remun_temp_taille = 0;
     double remun_temp = data->missions[index].remun;
 
     while (id_temp > 0) {
@@ -273,7 +273,7 @@ void estConsultation(const Data* data) {
 void estDetail(unsigned int id, Data* data) {
     if (data->missions[id - 1].etat[ID0] == -1) {
         unsigned int align[MAX_ALIGNEMENT] = { 0 };
-        alignement(id-1, &align[ID0], &align[ID1], &align[ID2], &align[ID3], data);
+        alignement(id - 1, &align[ID0], &align[ID1], &align[ID2], &align[ID3], data);
         affiche(id, data->missions[id - 1].nom, data->inscriptions[data->missions[id - 1].etat[ID1] - 1].nom, data->missions[id - 1].remun, data->missions[id - 1].niveau, align);
         for (int i = 0; i != MAX_RESULTAT; ++i) {
             if (data->missions[id - 1].rapport[i].echec != -1)
@@ -383,46 +383,47 @@ void attribRapport(unsigned int id_mission, unsigned int code, Data* data) {
 void recapitulatif(unsigned int id_ent, Data* data) {
     if (id_ent > 0 && ((strcmp(data->inscriptions[id_ent - 1].role, OP) == 0) || (strcmp(data->inscriptions[id_ent - 1].role, AG) == 0) || (strcmp(data->inscriptions[id_ent - 1].role, IN) == 0))) {
         bool non_attrib = false, attrib = false, termine = false, a_real = false, real = false;
+        unsigned int align[MAX_ALIGNEMENT] = { 0 };
 
         for (int i = 0; i != data->nb_mission; ++i) {
-            if (data->missions[i].etat[ID1] == id_ent && data->missions[i].etat[ID0] == -1 && !non_attrib) {
+            if (data->missions[i].etat[ID1] == id_ent && data->missions[i].etat[ID0] == -1) {
+                alignement(i, &align[ID0], &align[ID1], &align[ID2], &align[ID3], data);
                 non_attrib = true;
             }
-            if (data->missions[i].etat[ID1] == id_ent && data->missions[i].etat[ID0] != -1 && data->missions[i].etat[ID0] != id_ent && !data->missions[i].etat[ID2] && !attrib) {
+            if (data->missions[i].etat[ID1] == id_ent && data->missions[i].etat[ID0] != -1 && data->missions[i].etat[ID0] != id_ent && !data->missions[i].etat[ID2]) {
+                alignement(i, &align[ID0], &align[ID1], &align[ID2], &align[ID3], data);
                 attrib = true;
             }
-            if (data->missions[i].etat[ID1] == id_ent && data->missions[i].etat[ID2] && !termine) {
+            if (data->missions[i].etat[ID1] == id_ent && data->missions[i].etat[ID2]) {
+                alignement(i, &align[ID0], &align[ID1], &align[ID2], &align[ID3], data);
                 termine = true;
             }
-            if (data->missions[i].etat[ID3] == id_ent && !data->missions[i].etat[ID2] && !a_real) {
+            if (data->missions[i].etat[ID3] == id_ent && !data->missions[i].etat[ID2]) {
+                alignement(i, &align[ID0], &align[ID1], &align[ID2], &align[ID3], data);
                 a_real = true;
             }
-            if (data->missions[i].etat[ID3] == id_ent && data->missions[i].etat[ID2] && !real) {
+            if (data->missions[i].etat[ID3] == id_ent && data->missions[i].etat[ID2]) {
+                alignement(i, &align[ID0], &align[ID1], &align[ID2], &align[ID3], data);
                 real = true;
             }
         }
         if (non_attrib)
-            non_attribuee(id_ent, data);
+            non_attribuee(id_ent, align, data);
         if (attrib)
-            attribuee(id_ent, data);
+            attribuee(id_ent, align, data);
         if (termine)
-            terminees(id_ent, data);
+            terminees(id_ent, align, data);
         if (a_real)
-            a_realiser(id_ent, data);
+            a_realiser(id_ent, align, data);
         if (real)
-            realisees(id_ent, data);
+            realisees(id_ent, align, data);
     }
 
     else
         estErreur(5);
 }
 
-void non_attribuee(unsigned int id_ent, Data* data) {
-    unsigned int align[MAX_ALIGNEMENT] = { 0 };
-    for (int i = 0; i != data->nb_mission; ++i) {
-        if (data->missions[i].etat[ID1] == id_ent && data->missions[i].etat[ID0] == -1)
-            alignement(i, &align[ID0], &align[ID1], &align[ID2], &align[ID3], data);
-    }
+void non_attribuee(unsigned int id_ent, unsigned int* align, Data* data) {
     printf("* non attribuees\n");
     for (int i = 0; i != data->nb_mission; ++i) {
         if (data->missions[i].etat[ID1] == id_ent && data->missions[i].etat[ID0] == -1) {
@@ -432,12 +433,7 @@ void non_attribuee(unsigned int id_ent, Data* data) {
     }
 }
 
-void attribuee(unsigned int id_ent, Data* data) {
-    unsigned int align[MAX_ALIGNEMENT] = { 0 };
-    for (int i = 0; i != data->nb_mission; ++i) {
-        if (data->missions[i].etat[ID1] == id_ent && data->missions[i].etat[ID0] != -1 && data->missions[i].etat[ID0] != id_ent && !data->missions[i].etat[ID2])
-            alignement(i, &align[ID0], &align[ID1], &align[ID2], &align[ID3], data);
-    }
+void attribuee(unsigned int id_ent, unsigned int* align, Data* data) {
     printf("* attribuees\n");
     for (int i = 0; i != data->nb_mission; ++i) {
         if (data->missions[i].etat[ID1] == id_ent && data->missions[i].etat[ID0] != -1 && data->missions[i].etat[ID0] != id_ent && !data->missions[i].etat[ID2]) {
@@ -447,12 +443,7 @@ void attribuee(unsigned int id_ent, Data* data) {
     }
 }
 
-void terminees(unsigned int id_ent, Data* data) {
-    unsigned int align[MAX_ALIGNEMENT] = { 0 };
-    for (int i = 0; i != data->nb_mission; ++i) {
-        if (data->missions[i].etat[ID1] == id_ent && data->missions[i].etat[ID2])
-            alignement(i, &align[ID0], &align[ID1], &align[ID2], &align[ID3], data);
-    }
+void terminees(unsigned int id_ent, unsigned int* align, Data* data) {
     printf("* terminees\n");
     for (int i = 0; i != data->nb_mission; ++i) {
         if (data->missions[i].etat[ID1] == id_ent && data->missions[i].etat[ID2]) {
@@ -462,12 +453,7 @@ void terminees(unsigned int id_ent, Data* data) {
     }
 }
 
-void a_realiser(unsigned int id_ent, Data* data) {
-    unsigned int align[MAX_ALIGNEMENT] = { 0 };
-    for (int i = 0; i != data->nb_mission; ++i) {
-        if (data->missions[i].etat[ID3] == id_ent && !data->missions[i].etat[ID2])
-            alignement(i, &align[ID0], &align[ID1], &align[ID2], &align[ID3], data);
-    }
+void a_realiser(unsigned int id_ent, unsigned int* align, Data* data) {
     printf("* a realiser\n");
     for (int i = 0; i != data->nb_mission; ++i) {
         if (data->missions[i].etat[ID3] == id_ent && !data->missions[i].etat[ID2]) {
@@ -477,12 +463,7 @@ void a_realiser(unsigned int id_ent, Data* data) {
     }
 }
 
-void realisees(unsigned int id_ent, Data* data) {
-    unsigned int align[MAX_ALIGNEMENT] = { 0 };
-    for (int i = 0; i != data->nb_mission; ++i) {
-        if (data->missions[i].etat[ID3] == id_ent && data->missions[i].etat[ID2])
-            alignement(i, &align[ID0], &align[ID1], &align[ID2], &align[ID3], data);
-    }
+void realisees(unsigned int id_ent, unsigned int* align, Data* data) {
     printf("* realisees\n");
     for (int i = 0; i != data->nb_mission; ++i) {
         if (data->missions[i].etat[ID3] == id_ent && data->missions[i].etat[ID2]) {
