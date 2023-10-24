@@ -184,8 +184,8 @@ void alignement(unsigned int index, unsigned int *id_taille, unsigned int *nom_t
         id_temp /= 10;
         ++id_temp_taille;
     }
-    while (remun_temp > 0.001) {
-        remun_temp /= 10;
+    while (remun_temp >= 0.001) {
+        remun_temp /= 10.;
         ++remun_temp_taille;
     }
     if (id_temp_taille > *id_taille)
