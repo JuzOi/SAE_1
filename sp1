@@ -104,13 +104,12 @@ void separer(char commande[], Data* data) {
     if (temp == NULL)
         return;
 
-    else if (strcmp(temp, INSCRIPTION) == 0) {
+    else if (data->nb_inscrit < 50 && strcmp(temp, INSCRIPTION) == 0) {
         temp = strtok(NULL, ESP);
-        temp[sizeof(data->inscriptions[data->nb_inscrit].role) - 1] = '\0';
         estInscription(temp, strtok(NULL, ESP), data);
     }
 
-    else if (strcmp(temp, MISSION) == 0) {
+    else if (data->nb_mission < 500 && strcmp(temp, MISSION) == 0) {
         temp = strtok(NULL, ESP);
         char* temp2 = strtok(NULL, ESP);
         estMission(atoi(temp), temp2, atof(strtok(NULL, ESP)), data);
@@ -203,8 +202,10 @@ void estInscription(char* role, char* nom, Data* data) {
     bool test_nom = true;
     if (strcmp(role, OP) == 0 || strcmp(role, AG) == 0 || strcmp(role, IN) == 0) {
         for (int i = 0; i != data->nb_inscrit; ++i) {
-            if (strcmp(data->inscriptions[i].nom, nom) == 0)
+            if (strcmp(data->inscriptions[i].nom, nom) == 0) {
+                printf("%s\t%s\n", data->inscriptions[i].nom, nom);
                 test_nom = false;
+            }
         }
         if (test_nom) {
             strcpy(data->inscriptions[data->nb_inscrit].role, role);
