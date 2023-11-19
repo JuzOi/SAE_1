@@ -6,25 +6,30 @@
 #include <math.h>
 #pragma warning(disable : 4996)
 
+// Déclaration des constantes globales
 enum {
     MAX_INSCRIPTIONS = 50, MAX_CARACTERES = 47, MAX_ROLE = 3, MAX_NOM = 31, MAX_MISSIONS = 500, MAX_RESULTAT = 4,
-    MAX_ETAT = 4, MAX_SIGNIFICATION = 38, ID0 = 0, ID1 = 1, ID2 = 2, ID3 = 3, MAX_ALIGNEMENT = 4
+    MAX_ETAT = 4, MAX_SIGNIFICATION = 38, ATTRIBUE = 0, PUBLIE = 1, TERMINE = 2, ACCEPTE = 3, ID0 = 0, ID1 = 1, ID2 = 2, ID3 = 3, MAX_ALIGNEMENT = 4
 };
 
 const char EXIT[] = "exit", ESP[] = " ", OP[] = "OP", AG[] = "AG", IN[] = "IN", INSCRIPTION[] = "inscription",
 MISSION[] = "mission", CONSULTATION[] = "consultation", DETAIL[] = "detail", ACCEPTATION[] = "acceptation",
 SOUS_TRAITANCE[] = "sous-traitance", RAPPORT[] = "rapport", RECAPITULATIF[] = "recapitulatif";
 
+// Déclaration des structures
+// La structure pour associer un rapport d'échec à l'entreprise responsable
 typedef struct {
     char echec;
     char auteur;
 }Couple;
 
+// La structure qui gère les inscriptions des entreprises
 typedef struct {
     char role[MAX_ROLE];
     char nom[MAX_NOM];
 }Inscription;
 
+// La structure qui gère les enregistrements des missions
 typedef struct {
     unsigned int id_M;
     char nom[MAX_NOM];
@@ -34,6 +39,7 @@ typedef struct {
     Couple rapport[MAX_RESULTAT];
 }Mission;
 
+// La structure globale qui permet de s'assurer du compte des missions enregistré et des entreprises inscrites
 typedef struct {
     unsigned int nb_inscrit;
     unsigned int nb_mission;
@@ -41,24 +47,26 @@ typedef struct {
     Mission missions[MAX_MISSIONS];
 }Data;
 
+// La structure pour implémenter le tableau des rapports du sujet
 typedef struct {
     const char signification[MAX_SIGNIFICATION];
     double remun;
 }Resultat;
 
-
+// Déclaration de la copie du tableau rapport du sujet
 const Resultat resultat[MAX_RESULTAT] = { { "Succes", 0. }, { "Local non accessible", 0. }, { "Pas de signal dans le boitier general", 0.055 }, { "Recepteur defectueux", 0.04 } };
 
+// Déclaration des fonctions
 void separer(char commande[], Data* data);
 void estErreur(unsigned int n);
 void affiche(const unsigned int id, const char* nom_mission, const char* nom_entreprise, const double remun, const int niveau, const unsigned int* align);
 void alignement(unsigned int index, unsigned int* id_taille, unsigned int* nom_taille, unsigned int* ent_taille, unsigned int* remun_taille, const Data* data);
-void estInscription(char* role, char* nom, Data* data);
+void inscription(char* role, char* nom, Data* data);
 void estMission(unsigned int id, char* nom, double remun, Data* data);
 void attribMission(unsigned int id, char* nom, double remun, Data* data);
-void estConsultation(const Data* data);
-void estDetail(unsigned int id, Data* data);
-void estAcceptation(unsigned int id_op, unsigned int id_mission, Data* data);
+void consultation(const Data* data);
+void detail(unsigned int id, Data* data);
+void acceptation(unsigned int id_op, unsigned int id_mission, Data* data);
 void estSoustraitance(unsigned int id_ag, unsigned int id_mission, double remun, Data* data);
 void soustraitance(unsigned int id_ag, unsigned int id_mission, double remun, Data* data);
 void estRapport(unsigned int id_mission, unsigned int code, Data* data);
@@ -69,8 +77,9 @@ void attribuee(unsigned int id_ent, unsigned int* align, Data* data);
 void terminees(unsigned int id_ent, unsigned int* align, Data* data);
 void a_realiser(unsigned int id_ent, unsigned int* align, Data* data);
 void realisees(unsigned int id_ent, unsigned int* align, Data* data);
+void debug(Data* data);
 
-
+/* Le main() contient la boucle principale, assure la lecture continue des commandes entrées par l'utilisateur. */
 int main() {
     Data data;
     data.nb_inscrit = 0;
@@ -82,7 +91,6 @@ int main() {
     while (test) {
         fgets(commande, MAX_CARACTERES, stdin);
 
-        // Supprime le caractère de saut de ligne s'il est présent
         size_t len = strlen(commande);
         if (len > 0 && commande[len - 1] == '\n') {
             commande[len - 1] = '\0';
@@ -98,6 +106,7 @@ int main() {
     return 0;
 }
 
+/* Cette fonction analyse la commande pour déterminer l'opération à effectuer et diriger le programme vers la fonction appropriée. */
 void separer(char commande[], Data* data) {
     char* temp = strtok(commande, ESP);
 
@@ -106,7 +115,7 @@ void separer(char commande[], Data* data) {
 
     else if (data->nb_inscrit < 50 && strcmp(temp, INSCRIPTION) == 0) {
         temp = strtok(NULL, ESP);
-        estInscription(temp, strtok(NULL, ESP), data);
+        inscription(temp, strtok(NULL, ESP), data);
     }
 
     else if (data->nb_mission < 500 && strcmp(temp, MISSION) == 0) {
@@ -115,15 +124,15 @@ void separer(char commande[], Data* data) {
         estMission(atoi(temp), temp2, atof(strtok(NULL, ESP)), data);
     }
     else if (strcmp(temp, CONSULTATION) == 0) {
-        estConsultation(data);
+        consultation(data);
     }
     else if (strcmp(temp, DETAIL) == 0) {
         temp = strtok(NULL, ESP);
-        estDetail(atoi(temp), data);
+        detail(atoi(temp), data);
     }
     else if (strcmp(temp, ACCEPTATION) == 0) {
         temp = strtok(NULL, ESP);
-        estAcceptation(atoi(temp), atoi(strtok(NULL, ESP)), data);
+        acceptation(atoi(temp), atoi(strtok(NULL, ESP)), data);
     }
     else if (strcmp(temp, SOUS_TRAITANCE) == 0) {
         temp = strtok(NULL, ESP);
@@ -139,6 +148,7 @@ void separer(char commande[], Data* data) {
     }
 }
 
+/* Cette fonction est utilisée pour afficher un message d'erreur correspondant à un code d'erreur spécifique.*/
 void estErreur(unsigned int n) {
     switch (n)
     {
@@ -171,12 +181,15 @@ void estErreur(unsigned int n) {
     }
 }
 
+/* Cette fonction formate et affiche les détails d'une mission dans un format en utilisant des spécificateurs de format pour aligner correctement les différentes parties de l'affichage.*/
 void affiche(const unsigned int id, const char* nom_mission, const char* nom_entreprise, const double remun, const int niveau, const unsigned int* align) {
     printf("%-*u %-*s %-*s %*.2f (%d)\n", align[ID0], id, align[ID1], nom_mission, align[ID2], nom_entreprise, align[ID3], remun, niveau);
 }
 
+/* Cette fonction permet, de formater correctement l'affichage des détails des missions en ajustant la largeur en fonction de la taille des données, 
+permet de rendre l'affichage plus lisible et aligné. */
 void alignement(unsigned int index, unsigned int* id_taille, unsigned int* nom_taille, unsigned int* ent_taille, unsigned int* remun_taille, const Data* data) {
-    unsigned int id_temp = data->missions[index].id_M, id_temp_taille = 0, remun_temp_taille = 0;
+    unsigned int id_temp = index + 1, id_temp_taille = 0, remun_temp_taille = 0;
     double remun_temp = data->missions[index].remun;
 
     while (id_temp > 0) {
@@ -193,17 +206,17 @@ void alignement(unsigned int index, unsigned int* id_taille, unsigned int* nom_t
         *remun_taille = remun_temp_taille;
     if (strlen(data->missions[index].nom) > *nom_taille)
         *nom_taille = strlen(data->missions[index].nom);
-    if (strlen(data->inscriptions[data->missions[index].etat[ID1] - 1].nom) > *ent_taille)
-        *ent_taille = strlen(data->inscriptions[data->missions[index].etat[ID1] - 1].nom);
-
+    if (strlen(data->inscriptions[data->missions[index].etat[PUBLIE] - 1].nom) > *ent_taille)
+        *ent_taille = strlen(data->inscriptions[data->missions[index].etat[PUBLIE] - 1].nom);
 }
 
-void estInscription(char* role, char* nom, Data* data) {
+/* Cette fonction ajoute de nouvelle entreprise avec leur rôle et leur nom à la liste des entreprises inscrits, 
+à condition que le rôle soit valide et que le nom soit unique parmi les inscriptions déjà enregistrées. */
+void inscription(char* role, char* nom, Data* data) {
     bool test_nom = true;
     if (strcmp(role, OP) == 0 || strcmp(role, AG) == 0 || strcmp(role, IN) == 0) {
         for (int i = 0; i != data->nb_inscrit; ++i) {
             if (strcmp(data->inscriptions[i].nom, nom) == 0) {
-                printf("%s\t%s\n", data->inscriptions[i].nom, nom);
                 test_nom = false;
             }
         }
@@ -222,6 +235,7 @@ void estInscription(char* role, char* nom, Data* data) {
     }
 }
 
+/* Cette fonction vérifie la validité des données pour attribuer une mission. */
 void estMission(unsigned int id, char* nom, double remun, Data* data) {
     if (id > 0 && strcmp(data->inscriptions[id - 1].role, OP) == 0) {
         if (remun > 0.) {
@@ -235,13 +249,14 @@ void estMission(unsigned int id, char* nom, double remun, Data* data) {
         estErreur(2);
 }
 
+/* Cette fonction initialise et ajoute une nouvelle mission à la liste des missions enregistrées dans la structure de données. */
 void attribMission(unsigned int id, char* nom, double remun, Data* data) {
     data->missions[data->nb_mission].remun = remun;
     data->missions[data->nb_mission].niveau = 0;
-    data->missions[data->nb_mission].etat[ID0] = -1;
-    data->missions[data->nb_mission].etat[ID1] = id;
-    data->missions[data->nb_mission].etat[ID2] = 0;
-    data->missions[data->nb_mission].etat[ID3] = -1;
+    data->missions[data->nb_mission].etat[ATTRIBUE] = -1;
+    data->missions[data->nb_mission].etat[PUBLIE] = id;
+    data->missions[data->nb_mission].etat[TERMINE] = 0;
+    data->missions[data->nb_mission].etat[ACCEPTE] = -1;
     data->missions[data->nb_mission].id_M = data->nb_mission;
     strcpy(data->missions[data->nb_mission].nom, nom);
     for (int i = 0; i != MAX_RESULTAT; ++i) {
@@ -251,18 +266,19 @@ void attribMission(unsigned int id, char* nom, double remun, Data* data) {
     ++data->nb_mission;
 }
 
-void estConsultation(const Data* data) {
+/* Cette fonction sert à afficher les détails des missions publiées et non attribuées. */
+void consultation(const Data* data) {
     bool test = false;
     unsigned int align[MAX_ALIGNEMENT] = { 0 };
     for (int i = 0; i != data->nb_mission; ++i) {
-        if (data->missions[i].etat[ID0] == -1) {
+        if (data->missions[i].etat[ATTRIBUE] == -1) {
             alignement(i, &align[ID0], &align[ID1], &align[ID2], &align[3], data);
         }
     }
 
     for (int i = 0; i != data->nb_mission; ++i) {
-        if (data->missions[i].etat[ID0] == -1) {
-            affiche(i + 1, data->missions[i].nom, data->inscriptions[data->missions[i].etat[ID1] - 1].nom, data->missions[i].remun, data->missions[i].niveau, align);
+        if (data->missions[i].etat[ATTRIBUE] == -1) {
+            affiche(i + 1, data->missions[i].nom, data->inscriptions[data->missions[i].etat[PUBLIE] - 1].nom, data->missions[i].remun, data->missions[i].niveau, align);
             test = true;
         }
     }
@@ -271,11 +287,13 @@ void estConsultation(const Data* data) {
         estErreur(3);
 }
 
-void estDetail(unsigned int id, Data* data) {
-    if (data->missions[id - 1].etat[ID0] == -1) {
+/* Cette fonction permet d'afficher les détails spécifiques d'une mission non attribuée en fonction de l'identifiant de cette mission, 
+les éventuels rapports d'échec associés à cette mission. */
+void detail(unsigned int id, Data* data) {
+    if (data->missions[id - 1].etat[ATTRIBUE] == -1) {
         unsigned int align[MAX_ALIGNEMENT] = { 0 };
         alignement(id - 1, &align[ID0], &align[ID1], &align[ID2], &align[ID3], data);
-        affiche(id, data->missions[id - 1].nom, data->inscriptions[data->missions[id - 1].etat[ID1] - 1].nom, data->missions[id - 1].remun, data->missions[id - 1].niveau, align);
+        affiche(id, data->missions[id - 1].nom, data->inscriptions[data->missions[id - 1].etat[PUBLIE] - 1].nom, data->missions[id - 1].remun, data->missions[id - 1].niveau, align);
         for (int i = 0; i != MAX_RESULTAT; ++i) {
             if (data->missions[id - 1].rapport[i].echec != -1)
                 printf("%s\n", resultat[data->missions[id - 1].rapport[i].echec].signification);
@@ -285,7 +303,9 @@ void estDetail(unsigned int id, Data* data) {
         estErreur(2);
 }
 
-void estAcceptation(unsigned int id_op, unsigned int id_mission, Data* data) {
+/* Cette fonction attribue une mission à un opérateur. 
+Elle assure que l'opérateur est valide et que la mission est disponible pour être acceptée avant d'effectuer cette attribution. */
+void acceptation(unsigned int id_op, unsigned int id_mission, Data* data) {
     bool test = true;
 
     for (int i = 0; i != MAX_RESULTAT; ++i) {
@@ -294,9 +314,9 @@ void estAcceptation(unsigned int id_op, unsigned int id_mission, Data* data) {
     }
 
     if (id_op > 0 && test && strcmp(data->inscriptions[id_op - 1].role, OP) != 0) {
-        if (id_mission > 0 && data->missions[id_mission - 1].etat[ID0] == -1) {
-            data->missions[id_mission - 1].etat[ID0] = id_op;
-            data->missions[id_mission - 1].etat[ID3] = id_op;
+        if (id_mission > 0 && data->missions[id_mission - 1].etat[ATTRIBUE] == -1) {
+            data->missions[id_mission - 1].etat[ATTRIBUE] = id_op;
+            data->missions[id_mission - 1].etat[ACCEPTE] = id_op;
             printf("Acceptation enregistree\n");
         }
         else
@@ -306,9 +326,11 @@ void estAcceptation(unsigned int id_op, unsigned int id_mission, Data* data) {
         estErreur(5);
 }
 
+/* Cette fonction évalue la possibilité d'attribuer une mission en tant que sous-traitance à un agent. 
+Elle vérifie si les conditions sont remplies pour autoriser cette attribution. */
 void estSoustraitance(unsigned int id_ag, unsigned int id_mission, double remun, Data* data) {
     if (id_ag > 0 && strcmp(data->inscriptions[id_ag - 1].role, AG) == 0) {
-        if (id_mission > 0 && (data->missions[id_mission - 1].etat[ID0] == -1 && data->missions[id_mission - 1].niveau < 5)) {
+        if (id_mission > 0 && (data->missions[id_mission - 1].etat[ATTRIBUE] == -1 && data->missions[id_mission - 1].niveau < 5)) {
             if (remun > 0.) {
                 soustraitance(id_ag, id_mission, remun, data);
                 printf("Sous-traitance enregistree (%u)\n", data->nb_mission);
@@ -323,9 +345,11 @@ void estSoustraitance(unsigned int id_ag, unsigned int id_mission, double remun,
         estErreur(5);
 }
 
+/* Cette fonction permet de créer une nouvelle mission attribuée à une agence sous-traitante basée sur une mission existante, 
+en modifiant les états appropriés et en incrémentant le niveau de sous-traitance de la mission pour refléter la sous-traitance. */
 void soustraitance(unsigned int id_ag, unsigned int id_mission, double remun, Data* data) {
     unsigned int id_temp = data->missions[id_mission - 1].id_M;
-    data->missions[id_mission - 1].etat[ID0] = id_ag;
+    data->missions[id_mission - 1].etat[ATTRIBUE] = id_ag;
 
     attribMission(id_ag, data->missions[id_mission - 1].nom, remun, data);
     data->missions[data->nb_mission - 1].niveau = data->missions[id_mission - 1].niveau + 1;
@@ -334,6 +358,8 @@ void soustraitance(unsigned int id_ag, unsigned int id_mission, double remun, Da
         data->missions[data->nb_mission - 1].rapport[i].echec = data->missions[id_mission - 1].rapport[i].echec;
 }
 
+/* Cette mission vérifie si une mission spécifique peut recevoir un rapport.
+Sinon, elle signale des erreurs spécifiques pour informer de l'impossibilité d'enregistrer ce rapport. */
 void estRapport(unsigned int id_mission, unsigned int code, Data* data) {
     bool test = true;
     if (id_mission <= 0 || id_mission > data->nb_mission)
@@ -350,11 +376,12 @@ void estRapport(unsigned int id_mission, unsigned int code, Data* data) {
     }
 }
 
-
+/* Cette fonction gère la terminaison des missions liées à la même tâche, 
+crée un rapport pour la mission spécifiée, ajuste la rémunération et stocke les détails du rapport dans la structure correspondante. */
 void attribRapport(unsigned int id_mission, unsigned int code, Data* data) {
     for (int i = 0; i != data->nb_mission; ++i) {
         if (data->missions[i].id_M == data->missions[id_mission - 1].id_M)
-            data->missions[i].etat[ID2] = 1;
+            data->missions[i].etat[TERMINE] = 1;
     }
 
     if (code == 0)
@@ -368,10 +395,10 @@ void attribRapport(unsigned int id_mission, unsigned int code, Data* data) {
         for (int i = 0; i != MAX_RESULTAT - 1; ++i) {
             rapport_temp[i + 1] = data->missions[id_mission - 1].rapport[i];
         }
-        rapport_temp[0].auteur = data->missions[id_mission - 1].etat[ID3];
+        rapport_temp[0].auteur = data->missions[id_mission - 1].etat[ACCEPTE];
         rapport_temp[0].echec = code;
 
-        attribMission(data->missions[id_mission - 1].etat[ID1], data->missions[id_mission - 1].nom, remun, data);
+        attribMission(data->missions[id_mission - 1].etat[PUBLIE], data->missions[id_mission - 1].nom, remun, data);
 
         for (int i = 0; i != MAX_RESULTAT; ++i) {
             data->missions[id_temp].rapport[i] = rapport_temp[i];
@@ -381,95 +408,101 @@ void attribRapport(unsigned int id_mission, unsigned int code, Data* data) {
     }
 }
 
+/* Cette fonction fournit une vue d'ensemble des missions non attribuée, attribuées, terminées, à realiser et realiser pour une entreprise donnée en paramètre. */
 void recapitulatif(unsigned int id_ent, Data* data) {
     if (id_ent > 0 && ((strcmp(data->inscriptions[id_ent - 1].role, OP) == 0) || (strcmp(data->inscriptions[id_ent - 1].role, AG) == 0) || (strcmp(data->inscriptions[id_ent - 1].role, IN) == 0))) {
         bool non_attrib = false, attrib = false, termine = false, a_real = false, real = false;
-        unsigned int align[MAX_ALIGNEMENT] = { 0 };
+        unsigned int alignNA[MAX_ALIGNEMENT] = { 0 }, alignA[MAX_ALIGNEMENT] = { 0 }, alignT[MAX_ALIGNEMENT] = { 0 }, alignAR[MAX_ALIGNEMENT] = { 0 }, alignR[MAX_ALIGNEMENT] = { 0 };
 
         for (int i = 0; i != data->nb_mission; ++i) {
-            if (data->missions[i].etat[ID1] == id_ent && data->missions[i].etat[ID0] == -1) {
-                alignement(i, &align[ID0], &align[ID1], &align[ID2], &align[ID3], data);
+            if (data->missions[i].etat[PUBLIE] == id_ent && data->missions[i].etat[ATTRIBUE] == -1) {
+                alignement(i, &alignNA[ID0], &alignNA[ID1], &alignNA[ID2], &alignNA[ID3], data);
                 non_attrib = true;
             }
-            if (data->missions[i].etat[ID1] == id_ent && data->missions[i].etat[ID0] != -1 && data->missions[i].etat[ID0] != id_ent && !data->missions[i].etat[ID2]) {
-                alignement(i, &align[ID0], &align[ID1], &align[ID2], &align[ID3], data);
+            if (data->missions[i].etat[PUBLIE] == id_ent && data->missions[i].etat[ATTRIBUE] != -1 && !data->missions[i].etat[TERMINE]) {
+                alignement(i, &alignA[ID0], &alignA[ID1], &alignA[ID2], &alignA[ID3], data);
                 attrib = true;
             }
-            if (data->missions[i].etat[ID1] == id_ent && data->missions[i].etat[ID2]) {
-                alignement(i, &align[ID0], &align[ID1], &align[ID2], &align[ID3], data);
+            if (data->missions[i].etat[PUBLIE] == id_ent && data->missions[i].etat[TERMINE]) {
+                alignement(i, &alignT[ID0], &alignT[ID1], &alignT[ID2], &alignT[ID3], data);
                 termine = true;
             }
-            if (data->missions[i].etat[ID3] == id_ent && !data->missions[i].etat[ID2]) {
-                alignement(i, &align[ID0], &align[ID1], &align[ID2], &align[ID3], data);
+            if (data->missions[i].etat[ACCEPTE] == id_ent && !data->missions[i].etat[TERMINE]) {
+                alignement(i, &alignAR[ID0], &alignAR[ID1], &alignAR[ID2], &alignAR[ID3], data);
                 a_real = true;
             }
-            if (data->missions[i].etat[ID3] == id_ent && data->missions[i].etat[ID2]) {
-                alignement(i, &align[ID0], &align[ID1], &align[ID2], &align[ID3], data);
+            if (data->missions[i].etat[ACCEPTE] == id_ent && data->missions[i].etat[TERMINE]) {
+                alignement(i, &alignR[ID0], &alignR[ID1], &alignR[ID2], &alignR[ID3], data);
                 real = true;
             }
         }
         if (non_attrib)
-            non_attribuee(id_ent, align, data);
+            non_attribuee(id_ent, alignNA, data);
         if (attrib)
-            attribuee(id_ent, align, data);
+            attribuee(id_ent, alignA, data);
         if (termine)
-            terminees(id_ent, align, data);
+            terminees(id_ent, alignT, data);
         if (a_real)
-            a_realiser(id_ent, align, data);
+            a_realiser(id_ent, alignAR, data);
         if (real)
-            realisees(id_ent, align, data);
+            realisees(id_ent, alignR, data);
     }
 
     else
         estErreur(5);
 }
 
+/* Cette fonction est chargée d'afficher les missions qui sont publiées mais qui n'ont pas encore été attribuées à une entreprise donnée. */
 void non_attribuee(unsigned int id_ent, unsigned int* align, Data* data) {
     printf("* non attribuees\n");
     for (int i = 0; i != data->nb_mission; ++i) {
-        if (data->missions[i].etat[ID1] == id_ent && data->missions[i].etat[ID0] == -1) {
+        if (data->missions[i].etat[PUBLIE] == id_ent && data->missions[i].etat[ATTRIBUE] == -1) {
             printf("%s%s", ESP, ESP);
-            affiche(i + 1, data->missions[i].nom, data->inscriptions[data->missions[i].etat[1] - 1].nom, data->missions[i].remun, data->missions[i].niveau, align);
+            affiche(i + 1, data->missions[i].nom, data->inscriptions[data->missions[i].etat[PUBLIE] - 1].nom, data->missions[i].remun, data->missions[i].niveau, align);
         }
     }
 }
 
+/* Cette fonction est chargée d'afficher les missions qui sont publiées par une entreprise donnée et qui ont été attribuées. */
 void attribuee(unsigned int id_ent, unsigned int* align, Data* data) {
     printf("* attribuees\n");
     for (int i = 0; i != data->nb_mission; ++i) {
-        if (data->missions[i].etat[ID1] == id_ent && data->missions[i].etat[ID0] != -1 && data->missions[i].etat[ID0] != id_ent && !data->missions[i].etat[ID2]) {
+        if (data->missions[i].etat[PUBLIE] == id_ent && data->missions[i].etat[ATTRIBUE] != -1 && !data->missions[i].etat[TERMINE]) {
             printf("%s%s", ESP, ESP);
-            affiche(i + 1, data->missions[i].nom, data->inscriptions[data->missions[i].etat[1] - 1].nom, data->missions[i].remun, data->missions[i].niveau, align);
+            affiche(i + 1, data->missions[i].nom, data->inscriptions[data->missions[i].etat[PUBLIE] - 1].nom, data->missions[i].remun, data->missions[i].niveau, align);
         }
     }
 }
 
+/* Cette fonction est chargée d'afficher les missions qui sont publiées par une entreprise donnée et qui ont été terminées. */
 void terminees(unsigned int id_ent, unsigned int* align, Data* data) {
     printf("* terminees\n");
     for (int i = 0; i != data->nb_mission; ++i) {
-        if (data->missions[i].etat[ID1] == id_ent && data->missions[i].etat[ID2]) {
+        if (data->missions[i].etat[PUBLIE] == id_ent && data->missions[i].etat[TERMINE]) {
             printf("%s%s", ESP, ESP);
-            affiche(i + 1, data->missions[i].nom, data->inscriptions[data->missions[i].etat[1] - 1].nom, data->missions[i].remun, data->missions[i].niveau, align);
+            affiche(i + 1, data->missions[i].nom, data->inscriptions[data->missions[i].etat[PUBLIE] - 1].nom, data->missions[i].remun, data->missions[i].niveau, align);
         }
     }
 }
 
+/* Cette fonction est chargée d'afficher les missions qui sont acceptées par une entreprise donnée mais qui n'ont pas encore été terminées. */
 void a_realiser(unsigned int id_ent, unsigned int* align, Data* data) {
     printf("* a realiser\n");
     for (int i = 0; i != data->nb_mission; ++i) {
-        if (data->missions[i].etat[ID3] == id_ent && !data->missions[i].etat[ID2]) {
+        if (data->missions[i].etat[ACCEPTE] == id_ent && !data->missions[i].etat[TERMINE]) {
             printf("%s%s", ESP, ESP);
-            affiche(i + 1, data->missions[i].nom, data->inscriptions[data->missions[i].etat[1] - 1].nom, data->missions[i].remun, data->missions[i].niveau, align);
+            affiche(i + 1, data->missions[i].nom, data->inscriptions[data->missions[i].etat[PUBLIE] - 1].nom, data->missions[i].remun, data->missions[i].niveau, align);
         }
     }
 }
 
+/* Cette fonction est chargée d'afficher les missions qui sont acceptées par une entreprise donnée et qui ont été terminées. */
 void realisees(unsigned int id_ent, unsigned int* align, Data* data) {
     printf("* realisees\n");
     for (int i = 0; i != data->nb_mission; ++i) {
-        if (data->missions[i].etat[ID3] == id_ent && data->missions[i].etat[ID2]) {
+        if (data->missions[i].etat[ACCEPTE] == id_ent && data->missions[i].etat[TERMINE]) {
             printf("%s%s", ESP, ESP);
-            affiche(i + 1, data->missions[i].nom, data->inscriptions[data->missions[i].etat[1] - 1].nom, data->missions[i].remun, data->missions[i].niveau, align);
+            affiche(i + 1, data->missions[i].nom, data->inscriptions[data->missions[i].etat[PUBLIE] - 1].nom, data->missions[i].remun, data->missions[i].niveau, align);
         }
     }
 }
